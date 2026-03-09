@@ -11,7 +11,7 @@ API_KEY = os.getenv("GOOGLE_API_KEY")
 
 client = None
 
-# Try creating Gemini client
+# Create Gemini client if API exists
 try:
     if API_KEY:
         client = genai.Client(api_key=API_KEY)
@@ -20,38 +20,52 @@ except:
 
 
 # ---------------------------
-# Backup Itinerary (IMPORTANT)
+# Smart Fallback Generator
 # ---------------------------
 def fallback_itinerary(destination, days, nights):
-    return f"""
-Travel Itinerary (Sample Mode)
 
-Destination: {destination}
-Days: {days}
-Nights: {nights}
+    itinerary = f"# Travel Itinerary for {destination}\n"
+    itinerary += f"{days} Days / {nights} Nights\n\n"
 
-Day 1:
-- Arrival and hotel check-in
-- Local sightseeing
-- Try famous local food
+    activities = [
+        "Explore famous tourist attractions",
+        "Visit historical landmarks",
+        "Enjoy local street food",
+        "Go shopping in local markets",
+        "Experience cultural activities",
+        "Visit parks and scenic spots",
+        "Adventure activities",
+        "Relax at popular cafes",
+    ]
 
-Day 2:
-- Visit major tourist attractions
-- Shopping and cultural experience
+    food = [
+        "Try local traditional dishes",
+        "Taste famous street food",
+        "Enjoy dinner at a popular restaurant",
+        "Visit a local cafe",
+    ]
 
-Day 3:
-- Adventure activities
-- Explore markets
-- Departure preparation
+    for i in range(1, days + 1):
 
-Estimated Budget:
-₹15,000 – ₹25,000 per person
+        itinerary += f"## Day {i}: Explore {destination}\n\n"
 
-Travel Tips:
-- Carry ID proof
-- Check weather updates
-- Book tickets early
-"""
+        itinerary += f"Morning:\n{activities[(i*2) % len(activities)]}\n\n"
+
+        itinerary += f"Afternoon:\n{activities[(i*3) % len(activities)]}\n\n"
+
+        itinerary += f"Evening:\n{activities[(i*4) % len(activities)]}\n\n"
+
+        itinerary += f"Night:\n{food[i % len(food)]}\n\n"
+
+        itinerary += "---\n"
+
+    itinerary += "\nEstimated Budget: ₹15,000 – ₹25,000 per person\n"
+    itinerary += "Travel Tips:\n"
+    itinerary += "- Carry ID proof\n"
+    itinerary += "- Check weather before travel\n"
+    itinerary += "- Book tickets early\n"
+
+    return itinerary
 
 
 # ---------------------------
@@ -60,27 +74,49 @@ Travel Tips:
 def generate_itinerary(destination, days, nights):
 
     prompt = f"""
-    Create a detailed travel itinerary.
+    Create a detailed {days}-day travel itinerary for {destination}.
 
-    Destination: {destination}
-    Days: {days}
-    Nights: {nights}
+    Follow this format strictly.
+
+    Day 1: Title
+    Morning:
+    Afternoon:
+    Evening:
+    Night:
+
+    Day 2: Title
+    Morning:
+    Afternoon:
+    Evening:
+    Night:
+
+    Continue until Day {days}.
+
+    Include:
+    - Tourist attractions
+    - Activities
+    - Local food suggestions
+    - Travel tips
+    - Estimated budget
+
+    Each day must have different activities.
     """
 
     try:
+
         if client:
+
             response = client.models.generate_content(
                 model="gemini-2.0-flash",
                 contents=prompt
             )
 
-            return response.candidates[0].content.parts[0].text
+            return response.text
 
         else:
             return fallback_itinerary(destination, days, nights)
 
     except Exception:
-        # ✅ API fails → still works
         return fallback_itinerary(destination, days, nights)
 
 
@@ -91,33 +127,44 @@ def main():
 
     st.title("Travel Itinerary Generator ✈️")
 
-    destination = st.text_input("Enter destination:")
-    days = st.number_input("Number of days:", min_value=1)
-    nights = st.number_input("Number of nights:", min_value=0)
+    st.write("Generate a personalized travel itinerary using AI.")
+
+    destination = st.text_input("Enter your destination:")
+
+    days = st.number_input(
+        "Enter number of days:",
+        min_value=1,
+        step=1
+    )
+
+    nights = st.number_input(
+        "Enter number of nights:",
+        min_value=0,
+        step=1
+    )
 
     if st.button("Generate Itinerary", type="primary"):
 
         if destination.strip():
 
             with st.spinner("Generating itinerary..."):
+
                 itinerary = generate_itinerary(
                     destination,
                     days,
                     nights
                 )
 
-            st.text_area(
-                "Generated Itinerary",
-                value=itinerary,
-                height=350
-            )
+            st.success("Itinerary Generated!")
+
+            st.markdown(itinerary)
 
         else:
-            st.error("Please enter destination.")
+            st.error("Please enter a destination.")
 
 
 # ---------------------------
-# ENTRY POINT
+# Entry Point
 # ---------------------------
 if __name__ == "__main__":
     main()
